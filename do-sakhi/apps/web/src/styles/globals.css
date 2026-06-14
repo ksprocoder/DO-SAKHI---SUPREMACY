@@ -1,0 +1,331 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Google Fonts ────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+  /* ── Palette tokens ────────────────────────────────────────── */
+  --ds-ivory:        #F8F3EA;
+  --ds-warm-white:   #FFFDF8;
+  --ds-emerald:      #073F34;
+  --ds-deep-forest:  #022B24;
+  --ds-soft-sage:    #DDE7DC;
+  --ds-muted-sage:   #B8C9BC;
+  --ds-copper:       #A76F4D;
+  --ds-rose-gold:    #B98976;
+  --ds-charcoal:     #1D1D1B;
+  --ds-muted-text:   #6E675F;
+  --ds-border:       #E8DED2;
+  --ds-error:        #8A2F24;
+  --ds-success:      #315C48;
+
+  /* ── Typography scale (used by globals, not Tailwind config) ── */
+  --font-serif: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+  --font-sans:  'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* ── Transitions ────────────────────────────────────────────── */
+  --ease-luxury: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-in-out: cubic-bezier(0.42, 0, 0.58, 1);
+}
+
+/* ─────────────────────────────────────────────────────────────── */
+/*  BASE LAYER                                                     */
+/* ─────────────────────────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--ds-warm-white);
+    color: var(--ds-charcoal);
+    overflow-x: hidden;
+  }
+
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Ensure images don't overflow their containers */
+  img {
+    max-width: 100%;
+    display: block;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────── */
+/*  UTILITY LAYER                                                  */
+/* ─────────────────────────────────────────────────────────────── */
+@layer utilities {
+
+  /* ── Typography ───────────────────────────────────────────── */
+
+  .ds-hero-title {
+    font-family: var(--font-serif);
+    font-size: clamp(44px, 7.5vw, 128px);
+    line-height: 0.88;
+    letter-spacing: -0.04em;
+    font-weight: 300;
+  }
+
+  .ds-section-title {
+    font-family: var(--font-serif);
+    font-size: clamp(30px, 4.5vw, 80px);
+    line-height: 0.93;
+    letter-spacing: -0.025em;
+    font-weight: 300;
+  }
+
+  .ds-body {
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.78;
+    font-weight: 400;
+  }
+
+  .ds-label {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  /* ── Copper Divider Lines ─────────────────────────────────── */
+
+  .ds-copper-line {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, var(--ds-copper) 40%, var(--ds-copper) 60%, transparent 100%);
+    opacity: 0.45;
+  }
+
+  .ds-copper-line-left {
+    height: 1px;
+    background: linear-gradient(90deg, var(--ds-copper) 0%, transparent 100%);
+    opacity: 0.5;
+  }
+
+  /* ── Product / Media Fallback Frame ──────────────────────── */
+  .ds-product-fallback {
+    background:
+      radial-gradient(ellipse at 20% 10%, rgba(167, 111, 77, 0.07) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 90%, rgba(7, 63, 52, 0.09) 0%, transparent 55%),
+      linear-gradient(160deg, #F0EAE0 0%, #E8DED5 30%, #D4E3D1 65%, #C8D9C4 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ds-product-fallback::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 28px,
+        rgba(167, 111, 77, 0.04) 28px,
+        rgba(167, 111, 77, 0.04) 29px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 28px,
+        rgba(167, 111, 77, 0.04) 28px,
+        rgba(167, 111, 77, 0.04) 29px
+      );
+  }
+
+  .ds-product-fallback::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60%;
+    height: 60%;
+    border: 1px solid rgba(167, 111, 77, 0.18);
+    pointer-events: none;
+  }
+
+  /* ── Editorial Panel Backgrounds ─────────────────────────── */
+
+  .ds-panel-sage {
+    background: linear-gradient(145deg, #E8EDE7 0%, #D6E2D3 40%, #C8D9C4 100%);
+  }
+
+  .ds-panel-forest {
+    background: linear-gradient(145deg, #033830 0%, #022B24 60%, #011810 100%);
+  }
+
+  .ds-panel-ivory {
+    background: linear-gradient(145deg, #FAF5EE 0%, #F2EAE0 50%, #EBDFD2 100%);
+  }
+
+  /* ── Hover & Transition Utilities ────────────────────────── */
+
+  .ds-hover-lift {
+    transition: transform 0.5s var(--ease-luxury), box-shadow 0.5s var(--ease-luxury);
+  }
+  .ds-hover-lift:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 25px 50px -12px rgba(2, 43, 36, 0.25);
+  }
+
+  /* Image zoom on parent hover — apply to <img> or <div> */
+  .ds-img-zoom {
+    transition: transform 0.85s var(--ease-luxury), filter 0.85s var(--ease-luxury);
+  }
+  .group:hover .ds-img-zoom {
+    transform: scale(1.06);
+    filter: brightness(1.05);
+  }
+
+  /* ── Glassmorphism & Depth ───────────────────────────────── */
+  
+  .ds-glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+  }
+  
+  .ds-glass-dark {
+    background: rgba(2, 27, 24, 0.25);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(167, 111, 77, 0.25);
+    box-shadow: 0 16px 40px 0 rgba(0, 0, 0, 0.3);
+  }
+
+  .ds-shadow-luxury {
+    box-shadow: 0 30px 60px -15px rgba(2, 43, 36, 0.3);
+  }
+
+  /* ── Ornamental Frame ─────────────────────────────────────── */
+
+  .ds-ornament-frame {
+    position: relative;
+  }
+  .ds-ornament-frame::before,
+  .ds-ornament-frame::after {
+    content: '';
+    position: absolute;
+    border: 1px solid rgba(167, 111, 77, 0.22);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .ds-ornament-frame::before {
+    inset: 12px;
+  }
+  .ds-ornament-frame::after {
+    inset: 20px;
+    border-color: rgba(167, 111, 77, 0.08);
+  }
+
+  /* ── Lookbook Mood Backgrounds ───────────────────────────── */
+
+  .ds-lookbook-morning {
+    background: linear-gradient(160deg, #EDE8DF 0%, #DDE7DC 40%, #C8D8C5 100%);
+  }
+  .ds-lookbook-office {
+    background: linear-gradient(160deg, #2C3E30 0%, #1E3028 50%, #122219 100%);
+  }
+  .ds-lookbook-evening {
+    background: linear-gradient(160deg, #3A2B20 0%, #2C2018 50%, #1C1410 100%);
+  }
+
+  /* ── Scroll-Reveal Fade Utilities ────────────────────────── */
+  /* Applied via JS IntersectionObserver or CSS animation delay */
+
+  .ds-fade-up {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.75s var(--ease-luxury), transform 0.75s var(--ease-luxury);
+  }
+  .ds-fade-up.in-view {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .ds-fade-in {
+    opacity: 0;
+    transition: opacity 0.65s var(--ease-luxury);
+  }
+  .ds-fade-in.in-view {
+    opacity: 1;
+  }
+
+}
+
+/* ─────────────────────────────────────────────────────────────── */
+/*  COMPONENT-LEVEL STYLES (cannot use Tailwind utilities)        */
+/* ─────────────────────────────────────────────────────────────── */
+
+/* Hero secondary CTA: copper border brightens on hover */
+.hero-stylist-cta:hover {
+  border-color: rgba(167, 111, 77, 0.75) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────── */
+/*  KEYFRAME ANIMATIONS                                           */
+/* ─────────────────────────────────────────────────────────────── */
+
+/* Subtle Ken Burns drift for hero/lookbook images */
+@keyframes ds-ken-burns {
+  from { transform: scale(1.04) translate(0, 0); }
+  to   { transform: scale(1.0)  translate(-0.5%, -0.5%); }
+}
+
+/* Gentle fade-in from below on page load */
+@keyframes ds-rise {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Copper line grow-in */
+@keyframes ds-line-grow {
+  from { transform: scaleX(0); transform-origin: left; }
+  to   { transform: scaleX(1); transform-origin: left; }
+}
+
+/* Utility classes that trigger animations */
+.ds-anim-ken-burns {
+  animation: ds-ken-burns 8s ease-in-out alternate infinite;
+}
+
+.ds-anim-rise {
+  animation: ds-rise 0.9s var(--ease-luxury) forwards;
+}
+
+.ds-anim-rise-delay-1 {
+  animation: ds-rise 0.9s 0.15s var(--ease-luxury) both;
+}
+
+.ds-anim-rise-delay-2 {
+  animation: ds-rise 0.9s 0.3s var(--ease-luxury) both;
+}
+
+.ds-anim-rise-delay-3 {
+  animation: ds-rise 0.9s 0.45s var(--ease-luxury) both;
+}
+
+.ds-anim-line-grow {
+  animation: ds-line-grow 0.6s 0.4s var(--ease-luxury) both;
+}

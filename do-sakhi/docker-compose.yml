@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:16
+    container_name: do_sakhi_postgres
+    environment:
+      POSTGRES_USER: do_sakhi_user
+      POSTGRES_PASSWORD: do_sakhi_password
+      POSTGRES_DB: do_sakhi_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
