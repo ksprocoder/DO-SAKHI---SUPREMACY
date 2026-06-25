@@ -1,6 +1,6 @@
-import express, { Request, Response } from 'express';
-import cors from 'cors';
-import { query } from './db';
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import { query, dbStorage } from './db';
 
 import productRoutes from './routes/products';
 import cartRoutes from './routes/cart';
@@ -8,48 +8,58 @@ import checkoutRoutes from './routes/checkout';
 import adminRoutes from './routes/admin';
 import importRoutes from './routes/importRoutes';
 
-const app = express();
-const port = process.env.PORT || 4000;
+// Env interface for Cloudflare Bindings
+export interface Env {
+  DB: D1Database;
+  BUCKET: R2Bucket;
+  R2_PUBLIC_URL: string;
+}
 
-app.use(cors());
-app.use(express.json());
+const app = new Hono<{ Bindings: Env }>();
+
+app.use('*', cors());
+
+// Middleware to inject D1 database into AsyncLocalStorage
+app.use('*', async (c, next) => {
+  return dbStorage.run(c.env.DB, async () => {
+    await next();
+  });
+});
 
 // Root endpoint
-app.get('/', (req: Request, res: Response) => {
-  res.json({ message: 'Welcome to Do Sakhi API. Use /api/v1/health to check status.' });
+app.get('/', (c) => {
+  return c.json({ message: 'Welcome to Do Sakhi API. Use /api/v1/health to check status.' });
 });
 
 // GET /api/v1/health
-app.get('/api/v1/health', async (req: Request, res: Response) => {
+app.get('/api/v1/health', async (c) => {
   try {
-    const dbResult = await query('SELECT NOW() as time');
-    res.json({
+    const dbResult = await query('SELECT CURRENT_TIMESTAMP as time');
+    return c.json({
       status: 'ok',
-      service: 'do-sakhi-api',
+      service: 'do-sakhi-api-cloudflare',
       database: 'connected',
       time: dbResult.rows?.[0]?.time || null,
     });
   } catch (error) {
     console.error('Health check failed:', error);
-    res.status(500).json({
+    return c.json({
       status: 'error',
       dbConnection: 'failed',
-    });
+    }, 500);
   }
 });
 
 // Routes
-app.use('/api/v1/products', productRoutes);
-app.use('/api/v1/cart', cartRoutes);
-app.use('/api/v1/checkout', checkoutRoutes);
-app.use('/api/v1/admin/import', importRoutes);
-app.use('/api/v1/admin', adminRoutes);
+app.route('/api/v1/products', productRoutes);
+app.route('/api/v1/cart', cartRoutes);
+app.route('/api/v1/checkout', checkoutRoutes);
+app.route('/api/v1/admin/import', importRoutes);
+app.route('/api/v1/admin', adminRoutes);
 
 // Catch-all for undefined routes
-app.use((req: Request, res: Response) => {
-  res.status(404).json({ error: 'Not Found' });
+app.notFound((c) => {
+  return c.json({ error: 'Not Found' }, 404);
 });
 
-app.listen(port, () => {
-  console.log(`Do Sakhi Backend API running on port ${port}`);
-});
+export default app;

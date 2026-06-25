@@ -10,7 +10,10 @@ import {
   TailoringResponse,
   CheckoutPayload,
   CheckoutResponse,
-  HealthResponse
+  HealthResponse,
+  CreatePaymentOrderResponse,
+  VerifyPaymentRequest,
+  VerifyPaymentResponse
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:4000/api/v1';
@@ -37,7 +40,8 @@ async function fetchHelper<T>(endpoint: string, options: RequestInit = {}): Prom
     try {
       const errorData = await response.json();
       if (errorData && errorData.error) {
-        errorMessage = errorData.error;
+        // Return stringified error object to be parsed by caller or message if simple
+        errorMessage = JSON.stringify(errorData.error);
       }
     } catch (e) {
       // Ignore JSON parse error for error response
@@ -82,7 +86,12 @@ export const apiClient = {
     body: JSON.stringify(payload),
   }),
   
-  initializeCheckout: (payload: CheckoutPayload) => fetchHelper<CheckoutResponse>('/checkout', {
+  createPaymentOrder: (payload: any) => fetchHelper<CreatePaymentOrderResponse>('/checkout/create-payment-order', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+
+  verifyPayment: (payload: VerifyPaymentRequest) => fetchHelper<VerifyPaymentResponse>('/checkout/verify-payment', {
     method: 'POST',
     body: JSON.stringify(payload),
   })

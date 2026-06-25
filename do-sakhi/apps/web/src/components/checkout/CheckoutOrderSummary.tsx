@@ -8,12 +8,14 @@ interface CheckoutOrderSummaryProps {
   items: CartItem[];
   onContinue: () => void;
   isSubmitting: boolean;
+  submitText?: string;
 }
 
 export function CheckoutOrderSummary({
   items,
   onContinue,
   isSubmitting,
+  submitText,
 }: CheckoutOrderSummaryProps) {
   const subtotal = items.reduce((acc, item) => {
     const price =
@@ -86,7 +88,7 @@ export function CheckoutOrderSummary({
           className="w-full bg-ds-emerald py-4 font-sans text-[11px] font-medium uppercase tracking-[0.18em] text-ds-ivory transition-all duration-300 hover:bg-ds-deep-forest focus:outline-none focus-visible:ring-2 focus-visible:ring-ds-emerald focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           aria-label="Continue to payment review"
         >
-          {isSubmitting ? 'Reviewing your details…' : 'Continue to Payment'}
+          {submitText ? submitText : isSubmitting ? 'Reviewing your details…' : 'Continue to Payment'}
         </button>
 
         {/* Microcopy */}

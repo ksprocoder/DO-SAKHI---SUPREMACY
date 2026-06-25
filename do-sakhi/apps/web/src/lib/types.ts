@@ -173,3 +173,60 @@ export interface HealthResponse {
   service: string;
   database: string;
 }
+
+export interface CreatePaymentOrderResponse {
+  success: boolean;
+  data?: {
+    orderId: string;
+    orderNumber: string;
+    orderStatus: string;
+    paymentStatus: string;
+    amount: {
+      subtotal: number;
+      shipping: number | null;
+      total: number;
+      totalPaise: number;
+      currency: string;
+    };
+    razorpay: {
+      keyId: string;
+      orderId: string;
+      amount: number;
+      currency: string;
+    };
+    stockLockExpiresAt: string;
+  };
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+}
+
+export interface VerifyPaymentRequest {
+  orderId: string;
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+export interface VerifyPaymentResponse {
+  success: boolean;
+  data?: {
+    orderId: string;
+    orderNumber: string;
+    orderStatus: string;
+    paymentStatus: string;
+    verified: boolean;
+    razorpay: {
+      orderId: string;
+      paymentId: string;
+    };
+    message?: string;
+  };
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+}

@@ -1,26 +1,11 @@
-import { Router, Request, Response } from 'express';
+import { Hono } from 'hono';
 import { query } from '../db';
 import { z } from 'zod';
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 
-const router = Router();
+import { Env } from '../index';
+const router = new Hono<{ Bindings: Env }>();
 
-// Ensure upload directory exists
-const uploadDir = path.join(__dirname, '../../../../apps/web/public/uploads/products');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
-const upload = multer({ storage });
 
 // ─── Validation Schemas ────────────────────────────────────────────────────────
 
@@ -113,22 +98,43 @@ const CreateProductSchema = z.object({
 // ─── POST /api/v1/admin/upload ───────────────────────────────────────────────
 // Upload a media file and return its URL
 
-router.post('/upload', upload.single('file'), (req: Request, res: Response) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
+router.post('/upload', async (c) => {
+  try {
+    const body = await c.req.parseBody();
+    const file = body['file'] as File;
+    
+    if (!file) {
+      return c.json({ error: 'No file uploaded' }, 400);
+    }
+
+    const fileExtension = file.name ? file.name.substring(file.name.lastIndexOf('.')) : '';
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const filename = `products/${uniqueSuffix}${fileExtension}`;
+
+    await c.env.BUCKET.put(filename, await file.arrayBuffer(), {
+      httpMetadata: {
+        contentType: file.type,
+      },
+    });
+
+    const publicUrl = c.env.R2_PUBLIC_URL || 'https://cd5a55aca305cdfa04cb1c76d4837a74.r2.cloudflarestorage.com/do-sakhi';
+    const url = `${publicUrl}/${filename}`;
+
+    return c.json({ url });
+  } catch (error) {
+    console.error('R2 upload error:', error);
+    return c.json({ error: 'Failed to upload image' }, 500);
   }
-  const url = `/uploads/products/${req.file.filename}`;
-  return res.json({ url });
 });
 
 // ─── POST /api/v1/admin/products ─────────────────────────────────────────────
 // Creates a product with all variants, media, tags, and collection mappings
 // in a single database transaction.
 
-router.post('/products', async (req: Request, res: Response) => {
-  const parsed = CreateProductSchema.safeParse(req.body);
+router.post('/products', async (c) => {
+  const parsed = CreateProductSchema.safeParse((await c.req.json()));
   if (!parsed.success) {
-    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten() });
+    return c.json({ error: 'Validation failed', details: parsed.error.flatten() });
   }
 
   const d = parsed.data;
@@ -239,11 +245,11 @@ router.post('/products', async (req: Request, res: Response) => {
 
     await query('COMMIT');
 
-    return res.status(201).json({
+    return c.json({
       message: 'Product created successfully',
       productId,
       slug: d.slug,
-    });
+    }, 201);
 
   } catch (err: any) {
     await query('ROLLBACK');
@@ -252,16 +258,16 @@ router.post('/products', async (req: Request, res: Response) => {
     // Surface duplicate slug/SKU errors clearly
     if (err.code === '23505') {
       const field = err.constraint?.includes('slug') ? 'slug' : 'SKU';
-      return res.status(409).json({ error: `Duplicate ${field} — please use a unique value.` });
+      return c.json({ error: `Duplicate ${field} — please use a unique value.` }, 409);
     }
-    return res.status(500).json({ error: 'Internal server error' });
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 
 // ─── GET /api/v1/admin/products ──────────────────────────────────────────────
 // List all products (all statuses) for the admin dashboard
 
-router.get('/products', async (_req: Request, res: Response) => {
+router.get('/products', async (c) => {
   try {
     const result = await query(`
       SELECT
@@ -277,53 +283,53 @@ router.get('/products', async (_req: Request, res: Response) => {
       GROUP BY p.id
       ORDER BY p.created_at DESC
     `);
-    return res.json({ data: result.rows });
+    return c.json({ data: result.rows });
   } catch (err) {
     console.error('Admin list products error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 
 // ─── GET /api/v1/admin/collections ───────────────────────────────────────────
 // Returns all collections for the collection selector in the form
 
-router.get('/collections', async (_req: Request, res: Response) => {
+router.get('/collections', async (c) => {
   try {
     const result = await query(`SELECT id, slug, title FROM collections WHERE is_active = true ORDER BY sort_order ASC`);
-    return res.json({ data: result.rows });
+    return c.json({ data: result.rows });
   } catch (err) {
     console.error('Admin list collections error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 
 // ─── DELETE /api/v1/admin/products/:id ───────────────────────────────────────
 
-router.delete('/products/:id', async (req: Request, res: Response) => {
-  const { id } = req.params;
+router.delete('/products/:id', async (c) => {
+  const { id } = c.req.param();
   try {
     await query(`DELETE FROM products WHERE id = $1`, [id]);
-    return res.json({ message: 'Product deleted' });
+    return c.json({ message: 'Product deleted' });
   } catch (err) {
     console.error('Admin delete product error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 
 // ─── PATCH /api/v1/admin/products/:id/status ─────────────────────────────────
 
-router.patch('/products/:id/status', async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { status } = req.body;
+router.patch('/products/:id/status', async (c) => {
+  const { id } = c.req.param();
+  const { status } = (await c.req.json());
   if (!['draft', 'active', 'archived'].includes(status)) {
-    return res.status(400).json({ error: 'Invalid status value' });
+    return c.json({ error: 'Invalid status value' }, 400);
   }
   try {
     await query(`UPDATE products SET status = $1, updated_at = NOW() WHERE id = $2`, [status, id]);
-    return res.json({ message: 'Status updated', status });
+    return c.json({ message: 'Status updated', status });
   } catch (err) {
     console.error('Admin update status error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 

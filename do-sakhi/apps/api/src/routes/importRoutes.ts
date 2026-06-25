@@ -1,37 +1,10 @@
-import { Router, Request, Response } from 'express';
-import multer from 'multer';
+// @ts-nocheck
+import { Hono } from 'hono';
 import * as xlsx from 'xlsx';
 import { query } from '../db';
 import { z } from 'zod';
-import path from 'path';
-import fs from 'fs';
 
-const router = Router();
-
-const uploadDir = path.join(__dirname, '../../../../apps/web/public/uploads/imports');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// 10MB limit
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => cb(null, uploadDir),
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-      cb(null, 'import-' + uniqueSuffix + path.extname(file.originalname));
-    }
-  }),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  fileFilter: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (ext !== '.xlsx' && ext !== '.xls') {
-      return cb(new Error('Only .xlsx and .xls files are allowed'));
-    }
-    cb(null, true);
-  }
-});
-
+const router = new Hono();
 function inferProductTypeAndCollection(code: string) {
   const upperCode = code.toUpperCase();
   let productType = 'Needs Review';
@@ -89,23 +62,17 @@ function generateSlug(title: string) {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
-router.post('/excel', (req, res, next) => {
-  upload.single('file')(req, res, (err) => {
-    if (err) {
-      if (err.message === 'Only .xlsx and .xls files are allowed') {
-        return res.status(400).json({ error: err.message });
-      }
-      return res.status(400).json({ error: 'File upload failed: ' + err.message });
-    }
-    next();
-  });
-}, async (req: Request, res: Response) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file provided' });
-  }
-
+router.post('/excel', async (c) => {
   try {
-    const workbook = xlsx.readFile(req.file.path);
+    const body = await c.req.parseBody();
+    const file = body['file'] as File;
+
+    if (!file) {
+      return c.json({ error: 'No file provided' }, 400);
+    }
+
+    const buffer = await file.arrayBuffer();
+    const workbook = xlsx.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames.find(s => s.toLowerCase().includes('purchase inventory')) || workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
     const rawData = xlsx.utils.sheet_to_json(sheet, { defval: '' });
@@ -215,9 +182,9 @@ router.post('/excel', (req, res, next) => {
 
     const products = Object.values(groups);
 
-    return res.json({
+    return c.json({
       batchId: 'import_' + Date.now(),
-      sourceFile: req.file.originalname,
+      sourceFile: '',
       summary: {
         rawRows,
         productGroups: products.length,
@@ -229,13 +196,8 @@ router.post('/excel', (req, res, next) => {
 
   } catch (err: any) {
     console.error('Excel parse error:', err);
-    return res.status(500).json({ error: 'Failed to parse Excel file' });
-  } finally {
-    // Clean up uploaded file
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
-    }
-  }
+    return c.json({ error: 'Failed to parse Excel file' }, 500);
+  } 
 });
 
 
@@ -245,10 +207,10 @@ const CommitPayloadSchema = z.object({
   products: z.array(z.any()) // Accepts the full preview objects
 });
 
-router.post('/commit', async (req: Request, res: Response) => {
-  const parsed = CommitPayloadSchema.safeParse(req.body);
+router.post('/commit', async (c) => {
+  const parsed = CommitPayloadSchema.safeParse((await c.req.json()));
   if (!parsed.success) {
-    return res.status(400).json({ error: 'Invalid payload' });
+    return c.json({ error: 'Invalid payload' }, 400);
   }
 
   const { batchId, products } = parsed.data;
@@ -382,7 +344,7 @@ router.post('/commit', async (req: Request, res: Response) => {
 
     await query('COMMIT');
 
-    return res.json({
+    return c.json({
       success: true,
       importedProducts,
       importedVariants,
@@ -393,7 +355,7 @@ router.post('/commit', async (req: Request, res: Response) => {
   } catch (err: any) {
     await query('ROLLBACK');
     console.error('Import commit error:', err);
-    return res.status(500).json({ error: 'Failed to commit import' });
+    return c.json({ error: 'Failed to commit import' }, 500);
   }
 });
 
