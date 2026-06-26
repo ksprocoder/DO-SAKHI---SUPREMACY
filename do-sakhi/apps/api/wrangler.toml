@@ -1,7 +1,7 @@
 name = "do-sakhi-api"
 main = "src/index.ts"
-compatibility_date = "2024-03-20"
-
+compatibility_date = "2024-09-23"
+compatibility_flags = [ "nodejs_compat" ]
 # D1 Database binding
 [[d1_databases]]
 binding = "DB"
@@ -12,3 +12,6 @@ database_id = "deb5392c-f6eb-426f-945b-9ab3be80e22d"
 [[r2_buckets]]
 binding = "BUCKET"
 bucket_name = "do-sakhi"
+
+[vars]
+R2_PUBLIC_URL = "https://pub-fda6899d0d0b4917855d46c0569896c8.r2.dev"
