@@ -15,15 +15,23 @@ export default function ShopPage() {
       <Suspense
         fallback={
           <div
-            className="flex min-h-[60vh] items-center justify-center"
-            aria-label="Loading shop"
+            className="flex min-h-[60vh] flex-col items-center justify-center"
+            aria-label="Loading shop collection"
           >
             <p
-              className="ds-label"
-              style={{ color: '#B8C9BC', letterSpacing: '0.2em' }}
+              className="font-sans uppercase text-xs"
+              style={{ color: '#A76F4D', letterSpacing: '0.22em', marginBottom: '14px' }}
             >
-              Loading collection…
+              Curating the edit
             </p>
+            <div
+              style={{
+                width: '32px',
+                height: '1px',
+                background: 'linear-gradient(90deg, transparent, #A76F4D, transparent)',
+              }}
+              aria-hidden="true"
+            />
           </div>
         }
       >

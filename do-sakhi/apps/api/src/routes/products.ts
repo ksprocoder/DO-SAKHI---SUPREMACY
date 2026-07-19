@@ -48,7 +48,7 @@ router.get('/', async (c: any) => {
           LIMIT 1
         ) as colour,
         (
-          SELECT array_agg(DISTINCT pv.size_label) 
+          SELECT GROUP_CONCAT(DISTINCT pv.size_label) 
           FROM product_variants pv 
           WHERE pv.product_id = p.id AND pv.is_active = true
         ) as available_sizes,
@@ -76,15 +76,15 @@ router.get('/', async (c: any) => {
       queryParams.push(collection);
     }
     if (fabric) {
-      baseQuery += ` AND p.fabric_composition ILIKE $${paramIndex++}`;
+      baseQuery += ` AND p.fabric_composition LIKE $${paramIndex++}`;
       queryParams.push(`%${fabric}%`);
     }
     if (occasion) {
-      baseQuery += ` AND EXISTS (SELECT 1 FROM product_tags pt WHERE pt.product_id = p.id AND pt.tag_type = 'occasion' AND pt.tag_value ILIKE $${paramIndex++})`;
+      baseQuery += ` AND EXISTS (SELECT 1 FROM product_tags pt WHERE pt.product_id = p.id AND pt.tag_type = 'occasion' AND pt.tag_value LIKE $${paramIndex++})`;
       queryParams.push(`%${occasion}%`);
     }
     if (silhouette) {
-      baseQuery += ` AND p.silhouette ILIKE $${paramIndex++}`;
+      baseQuery += ` AND p.silhouette LIKE $${paramIndex++}`;
       queryParams.push(`%${silhouette}%`);
     }
     if (minPrice) {
@@ -101,7 +101,7 @@ router.get('/', async (c: any) => {
     }
     
     // Total count query
-    const countQuery = `SELECT COUNT(*) FROM (${baseQuery}) as count_table`;
+    const countQuery = `SELECT COUNT(*) as count FROM (${baseQuery}) as count_table`;
     const countResult = await query(countQuery, queryParams);
     const totalItems = parseInt(countResult.rows[0].count, 10);
     const totalPages = Math.ceil(totalItems / limitNum);
@@ -112,8 +112,13 @@ router.get('/', async (c: any) => {
 
     const { rows } = await query(baseQuery, queryParams);
 
+    const formattedRows = rows.map((r: any) => ({
+      ...r,
+      available_sizes: typeof r.available_sizes === 'string' ? r.available_sizes.split(',') : (r.available_sizes || [])
+    }));
+
     return c.json({
-      data: rows,
+      data: formattedRows,
       pagination: {
         totalItems,
         totalPages,
@@ -159,7 +164,14 @@ router.get('/:slug', async (c: any) => {
     const product = productResult.rows[0];
 
     const variantsQuery = `
-      SELECT * FROM product_variants 
+      SELECT 
+        id, product_id, sku,
+        color_name, color_hex,
+        size_label, size_numeric,
+        price_inr, compare_at_price_inr,
+        stock_quantity, reserved_quantity, low_stock_threshold,
+        weight_grams, is_active
+      FROM product_variants 
       WHERE product_id = $1 AND is_active = true
       ORDER BY size_label ASC
     `;

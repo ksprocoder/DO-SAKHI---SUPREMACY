@@ -1,43 +1,71 @@
 'use client';
 
-/** Shop page loading skeleton */
+/** Shop page loading skeleton — luxury editorial style */
 export function ShopLoadingSkeleton() {
   const shimmer = {
     background: 'linear-gradient(90deg, #F0EAE0 0%, #E8DED2 40%, #F0EAE0 80%)',
     backgroundSize: '200% 100%',
-    animation: 'ds-shimmer 1.4s ease-in-out infinite',
+    animation: 'ds-shimmer 1.8s ease-in-out infinite',
   };
 
   return (
-    <div>
+    <div style={{ animation: 'ds-fade-in 0.4s ease-out both' }}>
       <style>{`
         @keyframes ds-shimmer {
-          0% { background-position: -200% center; }
-          100% { background-position: 200% center; }
+          0%   { background-position: -200% center; }
+          100% { background-position:  200% center; }
+        }
+        @keyframes ds-fade-in {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
+
+      {/* Luxury editorial loading label */}
+      <div className="mb-10 text-center" aria-live="polite" aria-label="Curating the edit">
+        <p
+          className="font-sans uppercase tracking-[0.22em] text-xs"
+          style={{ color: '#A76F4D', letterSpacing: '0.22em' }}
+        >
+          Curating the edit
+        </p>
+        <div
+          style={{
+            margin: '12px auto 0',
+            width: '32px',
+            height: '1px',
+            background: 'linear-gradient(90deg, transparent, #A76F4D, transparent)',
+          }}
+        />
+      </div>
+
+      {/* Skeleton grid */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} aria-hidden="true">
+          <div
+            key={i}
+            aria-hidden="true"
+            style={{ animationDelay: `${i * 80}ms`, animation: 'ds-fade-in 0.5s ease-out both' }}
+          >
             {/* Image skeleton */}
             <div
               className="w-full"
-              style={{ ...shimmer, aspectRatio: '4/5', marginBottom: '16px' }}
+              style={{ ...shimmer, aspectRatio: '4/5', marginBottom: '16px', borderRadius: '1px' }}
             />
             {/* Badge skeleton */}
             <div
-              style={{ ...shimmer, height: '12px', width: '70px', marginBottom: '10px' }}
+              style={{ ...shimmer, height: '10px', width: '60px', marginBottom: '10px' }}
             />
             {/* Title skeleton */}
             <div
-              style={{ ...shimmer, height: '14px', width: '85%', marginBottom: '8px' }}
+              style={{ ...shimmer, height: '13px', width: '85%', marginBottom: '8px' }}
             />
             <div
-              style={{ ...shimmer, height: '12px', width: '55%', marginBottom: '12px' }}
+              style={{ ...shimmer, height: '11px', width: '55%', marginBottom: '12px' }}
             />
             {/* Price skeleton */}
             <div
-              style={{ ...shimmer, height: '15px', width: '60px', marginBottom: '4px' }}
+              style={{ ...shimmer, height: '14px', width: '55px', marginBottom: '4px' }}
             />
           </div>
         ))}
@@ -74,15 +102,15 @@ export function ShopErrorState({ onRetry }: { onRetry: () => void }) {
 
       <p
         className="font-serif mb-3"
-        style={{ color: '#073F34', fontSize: 'clamp(18px, 2.5vw, 24px)', fontWeight: 300 }}
+        style={{ color: '#073F34', fontSize: 'clamp(18px, 2.5vw, 22px)', fontWeight: 300 }}
       >
-        We could not load the collection right now.
+        The collection could not be arranged right now.
       </p>
       <p
         className="ds-body mb-8"
-        style={{ color: '#6E675F', maxWidth: '360px' }}
+        style={{ color: '#6E675F', maxWidth: '340px' }}
       >
-        Please refresh, or explore again in a moment.
+        Please refresh, or return to the edit in a moment.
       </p>
       <button
         onClick={onRetry}
@@ -110,15 +138,21 @@ export function ShopEmptyState({ onClearFilters }: { onClearFilters: () => void 
       role="status"
       aria-live="polite"
     >
+      {/* Ornamental icon */}
       <div
-        className="mb-6 ds-product-fallback"
-        style={{ width: '80px', height: '96px', position: 'relative' }}
+        className="mb-8"
+        style={{
+          width: '1px',
+          height: '48px',
+          background: 'linear-gradient(180deg, transparent, rgba(167,111,77,0.4), transparent)',
+          margin: '0 auto 28px',
+        }}
         aria-hidden="true"
       />
 
       <p
         className="font-serif mb-3"
-        style={{ color: '#073F34', fontSize: 'clamp(18px, 2.5vw, 24px)', fontWeight: 300 }}
+        style={{ color: '#073F34', fontSize: 'clamp(18px, 2.5vw, 22px)', fontWeight: 300 }}
       >
         No pieces found for this selection.
       </p>
@@ -126,7 +160,7 @@ export function ShopEmptyState({ onClearFilters }: { onClearFilters: () => void 
         className="ds-body mb-8"
         style={{ color: '#6E675F', maxWidth: '320px' }}
       >
-        Try clearing a filter or exploring another edit.
+        Refine the filters or return to the full collection.
       </p>
       <button
         onClick={onClearFilters}

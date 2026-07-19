@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
     // Explicitly set formats for browser-optimised delivery.
     formats: ['image/avif', 'image/webp'],
   },
+
 };
 
 export default nextConfig;

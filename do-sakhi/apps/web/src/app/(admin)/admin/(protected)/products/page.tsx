@@ -1,15 +1,18 @@
+export const dynamic = "force-dynamic";
+
 import AdminShell from "@/components/admin/AdminShell";
 import Link from "next/link";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:4000/api/v1";
+const LOCAL_PROXY_API = "/admin/api";
 
 async function getProducts() {
   try {
-    const res = await fetch(`${API}/admin/products`, { cache: "no-store" });
+    const res = await fetch(`http://localhost:3001${LOCAL_PROXY_API}/products`, { cache: "no-store" });
     if (!res.ok) return [];
     const json = await res.json();
     return json.data || [];
-  } catch {
+  } catch (err) {
+    console.error(err);
     return [];
   }
 }
@@ -154,14 +157,34 @@ export default async function AdminDashboard() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div
-                            className="w-10 h-10 rounded flex-shrink-0 overflow-hidden"
-                            style={{ background: "rgba(255,255,255,0.06)" }}
+                            className="w-10 h-10 flex-shrink-0 overflow-hidden"
+                            style={{
+                              background: "rgba(255,255,255,0.05)",
+                              border: "1px solid rgba(167,111,77,0.18)",
+                            }}
                           >
                             {p.thumbnail && !p.thumbnail.includes('cdn.dosakhi.local') ? (
                               <img src={p.thumbnail} alt={p.title} className="w-full h-full object-cover" />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center text-xs" style={{ color: "#3E3830" }}>
-                                ◈
+                              // Product initials monogram — first letter of first two words
+                              <div
+                                className="w-full h-full flex items-center justify-center"
+                                style={{
+                                  fontFamily: "var(--font-serif)",
+                                  fontSize: "13px",
+                                  fontWeight: 300,
+                                  color: "#A76F4D",
+                                  letterSpacing: "0.04em",
+                                  userSelect: "none",
+                                }}
+                                aria-hidden="true"
+                              >
+                                {(p.title || 'DS')
+                                  .split(' ')
+                                  .filter(Boolean)
+                                  .slice(0, 2)
+                                  .map((w: string) => w[0].toUpperCase())
+                                  .join('')}
                               </div>
                             )}
                           </div>
@@ -210,15 +233,17 @@ export default async function AdminDashboard() {
 
                       {/* Actions */}
                       <td className="px-6 py-4">
-                        <span
-                          className="text-xs uppercase tracking-[0.1em] px-3 py-1.5 transition-all cursor-not-allowed opacity-50"
-                          title="Edit coming in later admin milestone"
+                        <Link
+                          href={`/admin/products/${p.id}/edit`}
+                          className="text-xs uppercase tracking-[0.1em] px-3 py-1.5 transition-all hover:opacity-80"
                           style={{
                             color: "#A76F4D",
+                            border: "1px solid rgba(167,111,77,0.3)",
+                            borderRadius: "2px",
                           }}
                         >
-                          Edit (Coming Soon)
-                        </span>
+                          Edit
+                        </Link>
                       </td>
                     </tr>
                   );

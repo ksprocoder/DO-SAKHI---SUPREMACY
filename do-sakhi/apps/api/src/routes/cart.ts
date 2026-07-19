@@ -28,7 +28,7 @@ router.post('/', async (c: any) => {
       // Create guest session
       const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
       const guestResult = await query(
-        `INSERT INTO guest_sessions (session_token, expires_at) VALUES ($1, NOW() + INTERVAL '30 days') RETURNING id`,
+        `INSERT INTO guest_sessions (session_token, expires_at) VALUES ($1, datetime('now', '+30 days')) RETURNING id`,
         [token]
       );
       finalGuestId = guestResult.rows[0].id;

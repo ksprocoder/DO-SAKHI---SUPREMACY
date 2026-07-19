@@ -13,6 +13,7 @@ export interface Env {
   DB: D1Database;
   BUCKET: R2Bucket;
   R2_PUBLIC_URL: string;
+  ADMIN_API_KEY: string;
 }
 
 const app = new Hono<{ Bindings: Env }>();

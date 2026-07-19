@@ -281,7 +281,7 @@ function MediaRow({
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:4000/api/v1"}/admin/upload`, {
+      const res = await fetch(`/admin/api/upload`, {
         method: "POST",
         body: formData,
       });
@@ -392,7 +392,7 @@ function MediaRow({
 
 // ─── Main Form ────────────────────────────────────────────────────────────────
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:4000/api/v1";
+const API = "/admin/api";
 
 function newVariant(): Variant {
   return { id: uid(), sku: "", colorName: "", colorHex: "", sizeLabel: "", sizeNumeric: "", priceInr: "", compareAtPriceInr: "", costPriceInr: "", stockQuantity: "0", lowStockThreshold: "2" };

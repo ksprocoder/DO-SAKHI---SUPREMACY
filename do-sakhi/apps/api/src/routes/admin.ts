@@ -5,11 +5,25 @@ import { z } from 'zod';
 import { Env } from '../index';
 const router = new Hono<{ Bindings: Env }>();
 
+// ─── Security Middleware ───────────────────────────────────────────────────────
 
-
+router.use('*', async (c, next) => {
+  const reqKey = c.req.header('x-admin-key');
+  // Must have an API key configured on the server
+  if (!c.env.ADMIN_API_KEY) {
+    console.error('CRITICAL: ADMIN_API_KEY is not configured in environment!');
+    return c.json({ error: 'Internal server configuration error' }, 500);
+  }
+  // Must match
+  if (reqKey !== c.env.ADMIN_API_KEY) {
+    return c.json({ error: 'Unauthorized API Access' }, 401);
+  }
+  await next();
+});
 // ─── Validation Schemas ────────────────────────────────────────────────────────
 
 const VariantSchema = z.object({
+  id: z.string().optional(),
   sku: z.string().min(1),
   colorName: z.string().min(1),
   colorHex: z.string().optional(),
@@ -24,6 +38,7 @@ const VariantSchema = z.object({
 });
 
 const MediaSchema = z.object({
+  id: z.string().optional(),
   mediaType: z.enum(['image', 'video']),
   mediaRole: z.string().min(1), // 'front', 'back', 'side', 'lifestyle', etc.
   url: z.string().url(),
@@ -329,6 +344,182 @@ router.patch('/products/:id/status', async (c) => {
     return c.json({ message: 'Status updated', status });
   } catch (err) {
     console.error('Admin update status error:', err);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// ─── GET /api/v1/admin/products/:id ──────────────────────────────────────────
+
+router.get('/products/:id', async (c) => {
+  const { id } = c.req.param();
+  try {
+    const productResult = await query(`
+      SELECT p.*,
+        (SELECT string_agg(c.slug, ',') FROM product_collection_mapping pcm JOIN collections c ON pcm.collection_id = c.id WHERE pcm.product_id = p.id) as collection_slugs
+      FROM products p WHERE id = $1
+    `, [id]);
+
+    if (productResult.rows.length === 0) return c.json({ error: 'Product not found' }, 404);
+    const product = productResult.rows[0];
+
+    const variantsResult = await query(`SELECT * FROM product_variants WHERE product_id = $1`, [id]);
+    const mediaResult = await query(`SELECT * FROM product_media WHERE product_id = $1 ORDER BY position ASC`, [id]);
+    const tagsResult = await query(`SELECT * FROM product_tags WHERE product_id = $1`, [id]);
+
+    const collectionSlugs = product.collection_slugs ? product.collection_slugs.split(',') : [];
+    const ribbonTag = tagsResult.rows.find((t: any) => t.tag_type === 'ribbon');
+
+    return c.json({
+      data: {
+        ...product,
+        collectionSlugs,
+        ribbon: ribbonTag ? ribbonTag.tag_value : '',
+        variants: variantsResult.rows,
+        media: mediaResult.rows,
+        tags: tagsResult.rows,
+      }
+    });
+  } catch (err) {
+    console.error('Admin get product error:', err);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// ─── PUT /api/v1/admin/products/:id ──────────────────────────────────────────
+
+router.put('/products/:id', async (c) => {
+  const { id } = c.req.param();
+  const parsed = CreateProductSchema.safeParse((await c.req.json()));
+  if (!parsed.success) {
+    return c.json({ error: 'Validation failed', details: parsed.error.flatten() });
+  }
+
+  const d = parsed.data;
+
+  try {
+    await query('BEGIN');
+
+    // Update Core Product (slug and all metadata)
+    await query(
+      `UPDATE products SET
+        title = $1, slug = $2, short_description = $3, description = $4,
+        product_type = $5, status = $6, fulfillment_type = $7,
+        is_ready_to_ship = $8, is_made_to_order = $9, custom_tailoring_available = $10,
+        fabric_type = $11, fabric_composition = $12, fabric_feel = $13,
+        care_instructions = $14, fit_note = $15, silhouette = $16,
+        neckline = $17, sleeve_type = $18, kurti_length = $19, bottom_type = $20,
+        dupatta_included = $21, pocket_available = $22,
+        embroidery_detail = $23, print_detail = $24,
+        lead_time_min_days = $25, lead_time_max_days = $26,
+        seo_title = $27, seo_description = $28,
+        updated_at = NOW()
+       WHERE id = $29`,
+      [
+        d.title, d.slug, d.shortDescription ?? null, d.description ?? null,
+        d.productType, d.status, d.fulfillmentType,
+        d.isReadyToShip, d.isMadeToOrder, d.customTailoringAvailable,
+        d.fabricType ?? null, d.fabricComposition ?? null, d.fabricFeel ?? null,
+        d.careInstructions ?? null, d.fitNote ?? null, d.silhouette ?? null,
+        d.neckline ?? null, d.sleeveType ?? null, d.kurtiLength ?? null, d.bottomType ?? null,
+        d.dupatteIncluded, d.pocketAvailable,
+        d.embroideryDetail ?? null, d.printDetail ?? null,
+        d.leadTimeMinDays, d.leadTimeMaxDays,
+        d.seoTitle ?? null, d.seoDescription ?? null,
+        id
+      ]
+    );
+
+    // Sync Variants (Delete missing, Update existing, Insert new)
+    const existingVariants = await query(`SELECT id FROM product_variants WHERE product_id = $1`, [id]);
+    const existingIds = existingVariants.rows.map((r: any) => String(r.id));
+    const incomingIds = d.variants.filter(v => v.id).map(v => String(v.id));
+    const toDeleteIds = existingIds.filter(eid => !incomingIds.includes(eid));
+
+    if (toDeleteIds.length > 0) {
+      await query(`DELETE FROM product_variants WHERE id = ANY($1::int[]) AND product_id = $2`, [toDeleteIds, id]);
+    }
+
+    for (const v of d.variants) {
+      if (v.id && existingIds.includes(String(v.id))) {
+        await query(
+          `UPDATE product_variants SET
+            sku=$1, color_name=$2, color_hex=$3, size_label=$4, size_numeric=$5,
+            price_inr=$6, compare_at_price_inr=$7, cost_price_inr=$8,
+            stock_quantity=$9, low_stock_threshold=$10, weight_grams=$11
+           WHERE id=$12 AND product_id=$13`,
+          [
+            v.sku, v.colorName, v.colorHex ?? null, v.sizeLabel, v.sizeNumeric ?? null,
+            v.priceInr, v.compareAtPriceInr ?? null, v.costPriceInr ?? null,
+            v.stockQuantity, v.lowStockThreshold, v.weightGrams ?? null,
+            v.id, id
+          ]
+        );
+      } else {
+        await query(
+          `INSERT INTO product_variants (
+            product_id, sku, color_name, color_hex,
+            size_label, size_numeric,
+            price_inr, compare_at_price_inr, cost_price_inr,
+            stock_quantity, low_stock_threshold, weight_grams
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+          [
+            id, v.sku, v.colorName, v.colorHex ?? null,
+            v.sizeLabel, v.sizeNumeric ?? null,
+            v.priceInr, v.compareAtPriceInr ?? null, v.costPriceInr ?? null,
+            v.stockQuantity, v.lowStockThreshold, v.weightGrams ?? null,
+          ]
+        );
+      }
+    }
+
+    // Sync Media (For simplicity, delete all and re-insert, preserving URLs)
+    await query(`DELETE FROM product_media WHERE product_id = $1`, [id]);
+    for (const m of d.media) {
+      await query(
+        `INSERT INTO product_media (
+          product_id, media_type, media_role,
+          url, thumbnail_url, alt_text,
+          width, height, position, is_primary
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [
+          id, m.mediaType, m.mediaRole,
+          m.url, m.thumbnailUrl ?? null, m.altText ?? null,
+          m.width ?? null, m.height ?? null, m.position, m.isPrimary,
+        ]
+      );
+    }
+
+    // Sync Tags (Delete all and re-insert)
+    await query(`DELETE FROM product_tags WHERE product_id = $1`, [id]);
+    const allTags = [...(d.tags || [])];
+    if (d.ribbon) allTags.push({ tagType: 'ribbon', tagValue: d.ribbon });
+    for (const t of allTags) {
+      await query(`INSERT INTO product_tags (product_id, tag_type, tag_value) VALUES ($1,$2,$3)`, [id, t.tagType, t.tagValue]);
+    }
+
+    // Sync Collections (Delete all mappings and re-insert)
+    await query(`DELETE FROM product_collection_mapping WHERE product_id = $1`, [id]);
+    if (d.collectionSlugs && d.collectionSlugs.length > 0) {
+      for (const slug of d.collectionSlugs) {
+        await query(
+          `INSERT INTO product_collection_mapping (product_id, collection_id)
+           SELECT $1, id FROM collections WHERE slug = $2
+           ON CONFLICT DO NOTHING`,
+          [id, slug]
+        );
+      }
+    }
+
+    await query('COMMIT');
+    return c.json({ message: 'Product updated successfully', productId: id, slug: d.slug }, 200);
+
+  } catch (err: any) {
+    await query('ROLLBACK');
+    console.error('Admin update product error:', err);
+    if (err.code === '23505') {
+      const field = err.constraint?.includes('slug') ? 'slug' : 'SKU';
+      return c.json({ error: `Duplicate ${field} — please use a unique value.` }, 409);
+    }
     return c.json({ error: 'Internal server error' }, 500);
   }
 });

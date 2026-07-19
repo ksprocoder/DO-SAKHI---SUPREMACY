@@ -34,7 +34,12 @@ export default function ShopClient() {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const fetchIdRef = useRef(0);
 
-  // ── Read filters from URL on mount ──
+  // ── Read filters from URL — called only client-side ──
+  // NOTE: We initialise from DEFAULT_FILTERS (safe for SSR) and then
+  // synchronise from searchParams in a useEffect after hydration.
+  // This prevents a Next.js hydration mismatch caused by reading
+  // searchParams synchronously during the useState initialiser, which
+  // produces a different value on the server vs. the client.
   const filtersFromUrl = useCallback((): ShopFilters => {
     return {
       category: searchParams.get('category') || '',
@@ -50,7 +55,14 @@ export default function ShopClient() {
     };
   }, [searchParams]);
 
-  const [filters, setFilters] = useState<ShopFilters>(filtersFromUrl());
+  // Initialise from safe default — no server/client mismatch
+  const [filters, setFilters] = useState<ShopFilters>(DEFAULT_FILTERS);
+
+  // Sync from URL params once after mount (client-side only)
+  useEffect(() => {
+    setFilters(filtersFromUrl());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally runs once on mount only
 
   // ── Sync filters to URL ──
   const syncToUrl = useCallback(
